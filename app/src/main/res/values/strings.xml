@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Cortador Robo</string>
+    <string name="activity_conexao">Conexão</string>
+    <string name="activity_botao_atualizar">Atualizar</string>
+    <string name="ligar_desligar">Ligar/Desligar</string>
+    <string name="dist_ncia_percorida">Total Cortado:</string>
+    <string name="n_vel_da_bateria">Nível da Bateria:</string>
+</resources>
