@@ -9,7 +9,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
-import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
@@ -26,11 +25,16 @@ import androidx.appcompat.app.AppCompatActivity;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Objects;
 import java.util.UUID;
 
 public class AppBluetoothControle extends AppCompatActivity {
 
     private static final int REQUEST_ENABLE_BT = 1;
+    public static final String TEXT_SWITCH_LIGADO = "Ligado";
+    public static final String TEXT_SWITCH_DESLIGADO = "Desligado";
+    public static final String TEXT_BOTAO_CONECTAR = "Conectar";
+    public static final String TEXT_BOTAO_DESCONECTAR = "Desconectar";
     private static int REQUEST_OK = 0;
     private static final int REQUEST_CONEXAO = 2;
     private static final int MESSAGE_READ = 3;
@@ -52,6 +56,7 @@ public class AppBluetoothControle extends AppCompatActivity {
     private TextView distancia;
     private Button botaoatualiza;
     private Switch switchonof;
+    private TextView switchText;
 
 
 
@@ -62,7 +67,7 @@ public class AppBluetoothControle extends AppCompatActivity {
         /*--- Parametros para retirar a title bar ---*/
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         this.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        getSupportActionBar().hide();
+        Objects.requireNonNull(getSupportActionBar()).hide();
         setContentView(R.layout.activity_main_layout_v21);
 
         bluetoothIsEnableTest();
@@ -111,38 +116,31 @@ public class AppBluetoothControle extends AppCompatActivity {
     }
 
     private void configuraSwitchOnOF() {
-        switchonof.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                if(isChecked){
-                    ConnectedThread.write("1");
-                }else{
-                    ConnectedThread.write("0");
-                }
+        switchonof.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if(isChecked){
+                ConnectedThread.write("1");
+                switchText.setText(TEXT_SWITCH_LIGADO);
+            }else{
+                ConnectedThread.write("0");
+                switchText.setText(TEXT_SWITCH_DESLIGADO);
             }
         });
     }
 
     private void configuraBotaoAtualizar() {
-        botaoatualiza.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if(conexao){
-                    ConnectedThread.write("2");
-                }else {
-                    Toast.makeText(AppBluetoothControle.this, "Falha ao atualizar", Toast.LENGTH_SHORT).show();
-                }
+        botaoatualiza.setOnClickListener(v -> {
+            if(conexao){
+                ConnectedThread.write("2");
+            }else {
+                Toast.makeText(AppBluetoothControle.this, "Falha ao atualizar", Toast.LENGTH_SHORT).show();
             }
         });
     }
 
     private void configuraBotaoConexao() {
-        botaoconexao.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                bluetoothIsEnableTest();
-                testeBotaoConexao();
-            }
+        botaoconexao.setOnClickListener(v -> {
+            bluetoothIsEnableTest();
+            testeBotaoConexao();
         });
     }
 
@@ -154,7 +152,6 @@ public class AppBluetoothControle extends AppCompatActivity {
                 } catch (IOException error) {
                     Toast.makeText(AppBluetoothControle.this, "Erro ao desconectar", Toast.LENGTH_SHORT).show();
                 }
-
             } else {
                 inicializaListaDeDispositivos();
             }
@@ -169,13 +166,13 @@ public class AppBluetoothControle extends AppCompatActivity {
     private void desconetaBluetooth() throws IOException {
         bluetoothSocket.close();
         conexao = false;
-        botaoconexao.setText("Conectar");
+        botaoconexao.setText(TEXT_BOTAO_CONECTAR);
         Toast.makeText(AppBluetoothControle.this, "Bluetooth Desconectado", Toast.LENGTH_SHORT).show();
     }
 
     private void alterarTextView() {
         bateria.setText(bat);
-        distancia.setText(dist + "m");
+        distancia.setText(dist);
     }
 
     private void inicializaCompontentesView() {
@@ -184,6 +181,7 @@ public class AppBluetoothControle extends AppCompatActivity {
         botaoconexao = findViewById(R.id.activity_botao_conectar);
         botaoatualiza = findViewById(R.id.activity_botao_atualizar);
         switchonof = findViewById(R.id.activity_bluetooth_switch_ONOF);
+        switchText = findViewById(R.id.activity_text_on_off);
     }
 
     private void bluetoothIsEnableTest() {
@@ -209,6 +207,7 @@ public class AppBluetoothControle extends AppCompatActivity {
 
     private void configuraConexaoDispositivos(int resultCode, @Nullable Intent data) {
         if (resultCode == Activity.RESULT_OK) {
+            assert null != data;
             Mac = data.getExtras().getString(listaDispositivos.ENDEREÇO_MAC);
             bluetoothDevice = bluetoothAdapter.getRemoteDevice(Mac);
             try {
@@ -222,6 +221,16 @@ public class AppBluetoothControle extends AppCompatActivity {
         }
     }
 
+    private void conectarDispositivo() throws IOException {
+        bluetoothSocket = bluetoothDevice.createInsecureRfcommSocketToServiceRecord(bluetooth_UUID);
+        bluetoothSocket.connect();
+        conexao = true;
+        ConnectedThread = new ConnectedThread(bluetoothSocket);
+        ConnectedThread.start();
+        botaoconexao.setText(TEXT_BOTAO_DESCONECTAR);
+        Toast.makeText(AppBluetoothControle.this, "Bluetooth Conectado: " + Mac, Toast.LENGTH_SHORT).show();
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -232,16 +241,6 @@ public class AppBluetoothControle extends AppCompatActivity {
             case REQUEST_CONEXAO:
                 configuraConexaoDispositivos(resultCode, data);
         }
-    }
-
-    private void conectarDispositivo() throws IOException {
-        bluetoothSocket = bluetoothDevice.createInsecureRfcommSocketToServiceRecord(bluetooth_UUID);
-        bluetoothSocket.connect();
-        conexao = true;
-        ConnectedThread = new ConnectedThread(bluetoothSocket);
-        ConnectedThread.start();
-        botaoconexao.setText("Desconectar");
-        Toast.makeText(AppBluetoothControle.this, "Bluetooth Conectado: " + Mac, Toast.LENGTH_SHORT).show();
     }
 
     private class ConnectedThread extends Thread {
